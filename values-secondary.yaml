@@ -1,0 +1,47 @@
+global:
+  tlsDisable: false
+
+server:
+  image:
+    repository: "hashicorp/vault-enterprise"
+    tag: "1.9.2-ent"
+
+  enterpriseLicense:
+    secretName: "vault-ent-license"
+
+  extraVolumes:
+    - type: secret
+      name: vault-server-tls
+
+  extraEnvironmentVars:
+    VAULT_CACERT: /vault/userconfig/vault-server-tls/vault.ca
+
+  ha:
+    enabled: true
+    raft:
+      enabled: true
+      config: |
+        listener "tcp" {
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+          tls_cert_file = "/vault/userconfig/vault-server-tls/vault.crt"
+          tls_key_file  = "/vault/userconfig/vault-server-tls/vault.key"
+          tls_client_ca_file = "/vault/userconfig/vault-server-tls/vault.ca"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}
+
+  service:
+    enabled: true
+    type: LoadBalancer
+    annotations:
+      {
+        service.beta.kubernetes.io/azure-dns-label-name: "assareh-vault-sec",
+      }
+
+ui:
+  serviceType: LoadBalancer
