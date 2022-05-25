@@ -1,0 +1,41 @@
+{{ $caValid := printf "%d" .Values.tls.ca.valid | int }}
+{{ $serverValid := printf "%d" .Values.tls.server.valid | int }}
+{{ $clientValid := printf "%d" .Values.tls.client.valid | int }}
+{{ $ca := genCA "svc-vault-ca" ( .Values.tls.ca.valid | int ) }}
+{{ $cn := printf "%s.%s.svc.cluster.local" .Values.tls.server.name .Release.Namespace }}
+{{ $dns1:= $cn }}
+{{ $dns2 := printf "%s.%s" .Values.tls.server.name .Release.Namespace }}
+{{ $dns3 := printf "%s.%s.svc" .Values.tls.server.name .Release.Namespace }}
+{{ $dns4 := printf "*.%s-internal" .Values.tls.server.name }}
+{{ $dns5 := printf "*.%s-internal.%s" .Values.tls.server.name .Release.Namespace }}
+{{ $dns6 := printf "*.%s-internal.%s.svc" .Values.tls.server.name .Release.Namespace }}
+{{ $dns7 := printf "%s-active.%s.svc" .Values.tls.server.name .Release.Namespace }}
+{{ $dns8 := printf "%s-standby.%s.svc" .Values.tls.server.name .Release.Namespace }}
+{{ $dns9 := printf "*.westus2.cloudapp.azure.com" }}
+{{ $server := genSignedCert $cn (list "127.0.0.1") (list $dns1 $dns2 $dns3 $dns4 $dns6 $dns6 $dns7 $dns8 $dns9) ( .Values.tls.server.valid | int ) $ca }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ template "tls-test.fullname" . }}-server
+  labels:
+    app: {{ template "tls-test.name" . }}-server
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+data:
+  ca.crt: {{ b64enc $ca.Cert }}
+  server.crt: {{ b64enc $server.Cert }}
+  server.key: {{ b64enc $server.Key }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ template "tls-test.fullname" . }}-ca
+  labels:
+    app: {{ template "tls-test.name" . }}-ca
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+data:
+  ca.crt: {{ b64enc $ca.Cert }}
